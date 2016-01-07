@@ -1,0 +1,32 @@
+*.class
+*.log
+logs/
+
+# sbt specific
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+
+# Scala-IDE specific
+.scala_dependencies
+.cache
+target
+.classpath
+.project
+.settings
+
+# IntelliJ specific
+.idea
+*.iml
+
+# Vagrant specific
+.vagrant
+
+# for python
+*.pyc
+
+# for ensime
+.ensime*
