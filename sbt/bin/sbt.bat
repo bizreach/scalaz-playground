@@ -1,6 +1,6 @@
 @REM SBT launcher script
 @REM 
-@REM Envioronment:
+@REM Environment:
 @REM JAVA_HOME - location of a JDK home dir (mandatory)
 @REM SBT_OPTS  - JVM options (optional)
 @REM Configuration:
@@ -22,6 +22,21 @@ FOR /F "tokens=* eol=# usebackq delims=" %%i IN ("%FN%") DO (
   set CFG_OPTS=!CFG_OPTS! !DO_NOT_REUSE_ME!
 )
 
+rem poor man's jenv (which is not available on Windows)
+IF DEFINED JAVA_HOMES (
+  IF EXIST .java-version FOR /F %%A IN (.java-version) DO (
+    SET JAVA_HOME=%JAVA_HOMES%\%%A
+    SET JDK_HOME=%JAVA_HOMES%\%%A
+  )
+)
+rem must set PATH or wrong javac is used for java projects
+IF DEFINED JAVA_HOME SET PATH=%JAVA_HOME%\bin;%PATH%
+
+rem users can set JAVA_OPTS via .jvmopts (sbt-extras style)
+IF EXIST .jvmopts FOR /F %%A IN (.jvmopts) DO (
+  SET JAVA_OPTS=%%A !JAVA_OPTS!
+)
+
 rem We use the value of the JAVACMD environment variable if defined
 set _JAVACMD=%JAVACMD%
 
@@ -37,11 +52,33 @@ rem We use the value of the JAVA_OPTS environment variable if defined, rather th
 set _JAVA_OPTS=%JAVA_OPTS%
 if "%_JAVA_OPTS%"=="" set _JAVA_OPTS=%CFG_OPTS%
 
+FOR %%a IN (%*) DO (
+  if "%%a" == "-jvm-debug" (
+    set JVM_DEBUG=true
+    set /a JVM_DEBUG_PORT=5005 2>nul >nul
+  ) else if "!JVM_DEBUG!" == "true" (
+    set /a JVM_DEBUG_PORT=%%a 2>nul >nul
+    if not "%%a" == "!JVM_DEBUG_PORT!" (
+      set SBT_ARGS=!SBT_ARGS! %%a
+    )
+  ) else (
+    set SBT_ARGS=!SBT_ARGS! %%a
+  )
+)
+
+if defined JVM_DEBUG_PORT (
+  set _JAVA_OPTS=!_JAVA_OPTS! -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=!JVM_DEBUG_PORT!
+)
+
+call :run %SBT_ARGS%
+
+if ERRORLEVEL 1 goto error
+goto end
+
 :run
 
 "%_JAVACMD%" %_JAVA_OPTS% %SBT_OPTS% -cp "%SBT_HOME%sbt-launch.jar" xsbt.boot.Boot %*
-if ERRORLEVEL 1 goto error
-goto end
+goto :eof
 
 :error
 @endlocal
